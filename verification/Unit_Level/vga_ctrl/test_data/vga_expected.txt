@@ -1,0 +1,4 @@
+# h_total=800
+# v_total=525
+# hsync low range: [656,751]
+# vsync low range: lines [490,491]
