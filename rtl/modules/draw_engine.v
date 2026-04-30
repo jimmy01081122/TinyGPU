@@ -109,6 +109,19 @@ endfunction
 wire in_range_line;
 assign in_range_line = (cur_x >= 0) && (cur_x < 11'd320) && (cur_y >= 0) && (cur_y < 10'd240);
 
+// ===== Combinational Wires for Bresenham Initialization =====
+// These pre-compute values for OPC_DRAW_LINE to avoid complex function calls in sequential logic
+wire signed [10:0] dx_diff;
+wire signed [9:0]  dy_diff;
+wire signed [12:0] dx_abs, dy_abs;
+wire signed [12:0] err_init;
+
+assign dx_diff = $signed({1'b0, x1}) - $signed({1'b0, x0});
+assign dy_diff = $signed({1'b0, y1[8:0]}) - $signed({1'b0, y0[8:0]});
+assign dx_abs = abs11(dx_diff);
+assign dy_abs = abs10(dy_diff);
+assign err_init = dx_abs - dy_abs;
+
 always @(posedge clk_sys or negedge rst_n) begin
     if (!rst_n) begin
         // Reset to initial state
@@ -161,19 +174,18 @@ always @(posedge clk_sys or negedge rst_n) begin
                             end_x <= $signed({1'b0, x1});
                             end_y <= $signed({1'b0, y1});
                             
-                            // Calculate dx and dy using helper functions
-                            dx    <= abs11({1'b0, x1} - {1'b0, x0})[11:0];
-                            dy    <= -(abs10({1'b0, y1} - {1'b0, y0})[11:0]);
+                            // Use pre-computed absolute values for dx and dy
+                            dx    <= dx_abs[11:0];
+                            dy    <= -dy_abs[11:0];
                             
                             // Determine step direction for x and y
                             sx    <= (x0 < x1) ? 2'sd1 : -2'sd1;
                             sy    <= (y0 < y1) ? 2'sd1 : -2'sd1;
                             
                             // Initialize error term: err = dx + dy
-                            err   <= abs11({1'b0, x1} - {1'b0, x0}) - abs10({1'b0, y1} - {1'b0, y0});
+                            err   <= err_init;
                             
                             state <= S_LINE;
-                        end
                         end
 
                         default: begin
